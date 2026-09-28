@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isBaysideStaff() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && (
+          request.auth.token.email.matches('.*@bayside\\.edu\\.vic\\.au$')
+          || request.auth.token.email.matches('.*@baysidecc\\.vic\\.edu\\.au$')
+        );
+    }
+
+    match /breaches/{breachId} {
+      allow read: if isBaysideStaff();
+      allow create: if isBaysideStaff()
+        && request.resource.data.kind in ['uniform', 'phone']
+        && request.resource.data.studentName is string
+        && request.resource.data.studentName.size() > 0
+        && request.resource.data.homegroup is string
+        && request.resource.data.breachType is string
+        && request.resource.data.enteredBy == request.auth.token.email
+        && request.resource.data.enteredByUid == request.auth.uid
+        && request.resource.data.createdAt is timestamp
+        && request.resource.data.actioned == false;
+      allow update: if isBaysideStaff()
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['actioned', 'actionedBy', 'actionedAt']);
+      allow delete: if false;
+    }
+
+    match /studentStats/{studentKey} {
+      allow read: if isBaysideStaff();
+      allow create, update: if isBaysideStaff()
+        && request.resource.data.studentName is string
+        && request.resource.data.studentKey is string
+        && request.resource.data.days is map
+        && request.resource.data.dayCount is int
+        && request.resource.data.updatedAt is timestamp;
+      allow delete: if false;
+    }
+
+    match /students/{studentId} {
+      allow read: if isBaysideStaff();
+      allow write: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

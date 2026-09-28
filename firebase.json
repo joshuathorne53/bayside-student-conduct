@@ -1,0 +1,16 @@
+{
+  "auth": {
+    "providers": {
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Bayside Conduct Register",
+        "supportEmail": "joshua.thorne@baysidecc.vic.edu.au"
+      }
+    }
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "australia-southeast2",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  }
+}

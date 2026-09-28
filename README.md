@@ -1,33 +1,40 @@
 # Bayside College Student Conduct Register
 
-A secure staff application for recording, reviewing and actioning uniform and phone breaches. It replaces the spreadsheet workflow with an authenticated web interface and persistent database.
+A GitHub Pages application for recording, reviewing and actioning uniform and phone breaches.
 
-## What it does
+## Live site
 
-- Restricts all pages and write operations to signed-in `@bayside.edu.vic.au` accounts.
-- Records uniform and phone breaches with staff attribution and Melbourne timestamps.
-- Calculates uniform escalation from distinct breach dates: Level 1 for days 1–3, then Levels 2–5 from days 4–7+.
-- Generates a parent/carer email draft using the current escalation level.
-- Filters the action register by homegroup and status, with durable actioned tracking.
-- Stores students, breach types and breaches in Cloudflare D1.
+<https://joshuathorne53.github.io/bayside-student-conduct/>
 
-## Local development
+## Architecture
 
-Requires Node.js 22.13 or newer.
+- **Website:** GitHub Pages, served from `docs/`
+- **Authentication:** Firebase Authentication with Google Sign-In
+- **Database:** Cloud Firestore in Melbourne (`australia-southeast2`)
+- **Security:** Firestore Security Rules enforce verified Bayside staff email domains
+
+The Firebase web API key in `docs/firebase-config.js` identifies the Firebase project and is intentionally public. Database access is controlled by Firebase Authentication and `firestore.rules`, not by hiding the configuration.
+
+## Features
+
+- Google sign-in for `@bayside.edu.vic.au` and `@baysidecc.vic.edu.au` staff
+- Real-time uniform and phone breach register
+- Uniform escalation calculated atomically from distinct breach dates
+- Parent/carer email drafts
+- Homegroup and status filtering
+- Durable actioned tracking with staff attribution
+- Responsive mobile and desktop interface
+
+## Firebase project
+
+Project ID: `bayside-conduct-register`
 
 ```bash
-npm install
-npm run dev
+firebase deploy --only auth,firestore:rules,firestore:indexes
 ```
 
-The local Sites environment supplies a test identity and local D1 database. Production uses the Sites sign-in flow and server-side email-domain checks.
+Firestore deletion protection is enabled. Student roster documents can be added to the `students` collection with `name`, `homegroup` and optional `active` fields. Staff can enter a student manually until a roster is imported.
 
-## Database
+## GitHub Pages
 
-The Drizzle schema is in `db/schema.ts`; generated migrations are in `drizzle/`. The app also safely creates missing tables and default breach types at runtime.
-
-Student records can be loaded into the `students` table with `id`, `name`, `homegroup` and `active` fields. Until a roster is loaded, staff can enter a student name and choose a homegroup manually.
-
-## Deployment
-
-The application is configured for OpenAI Sites in `.openai/hosting.json`. GitHub Pages is not suitable for this project because the staff login and database require server-side code.
+The `main` branch publishes the `/docs` directory. Pushing changes to files in `docs/` automatically rebuilds the live site.
