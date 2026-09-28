@@ -33,7 +33,7 @@ Project ID: `bayside-conduct-register`
 firebase deploy --only auth,firestore:rules,firestore:indexes
 ```
 
-Firestore deletion protection is enabled. Student roster documents can be added to the `students` collection with `name`, `homegroup` and optional `active` fields. Staff can enter a student manually until a roster is imported.
+Firestore deletion protection is enabled. The supplied 298-student roster is stored in the protected `students` collection with `name`, `homegroup` and `active` fields. It is intentionally not committed to this public repository.
 
 ## GitHub Pages
 

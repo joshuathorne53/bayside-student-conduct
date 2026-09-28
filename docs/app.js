@@ -11,7 +11,7 @@ provider.setCustomParameters({ prompt: 'select_account', hd: allowedDomains[0] }
 
 const HOMEGROUPS = ['7A','7B','8A','8B','9A','9B','9C','10A','10B','11A','11B','12A','12B','Unsorted'];
 const BREACH_TYPES = ['Incorrect shoes','Missing blazer','Incorrect shirt or polo','Non-uniform jumper','Jewellery','Other uniform breach'];
-const state = { user:null, breaches:[], students:[], kind:'uniform', filter:'open', group:'All homegroups', unsubscribe:null, notice:'' };
+const state = { user:null, breaches:[], students:[], kind:'uniform', filter:'open', group:'All homegroups', unsubscribe:null, studentUnsubscribe:null, notice:'' };
 const root = document.querySelector('#app');
 
 onAuthStateChanged(auth, async user => {
@@ -57,23 +57,26 @@ function bindAppEvents() {
   document.querySelectorAll('[data-filter]').forEach(button=>button.addEventListener('click',()=>{state.filter=button.dataset.filter;document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('selected',b===button));renderRegister();}));
   document.querySelector('#group-filter').addEventListener('change',event=>{state.group=event.target.value;renderRegister();});
   document.querySelector('#breach-form').addEventListener('submit',submitBreach);
-  document.querySelector('#student-name').addEventListener('change',event=>{const match=state.students.find(s=>s.name.toLowerCase()===event.target.value.trim().toLowerCase());if(match)document.querySelector('#homegroup').value=match.homegroup;});
+  document.querySelector('#student-name').addEventListener('input',event=>{const match=state.students.find(s=>s.name.toLowerCase()===event.target.value.trim().toLowerCase());if(match)document.querySelector('#homegroup').value=match.homegroup;});
 }
 
 function subscribeToData() {
-  teardown();
+  if(state.unsubscribe)state.unsubscribe();
+  if(state.studentUnsubscribe)state.studentUnsubscribe();
   state.unsubscribe=onSnapshot(query(collection(db,'breaches'),orderBy('createdAt','desc'),limit(250)),snapshot=>{state.breaches=snapshot.docs.map(item=>({id:item.id,...item.data()}));renderData();},error=>showToast(friendlyError(error)));
-  onSnapshot(query(collection(db,'students'),orderBy('name')),snapshot=>{state.students=snapshot.docs.map(item=>({id:item.id,...item.data()})).filter(s=>s.active!==false);renderRoster();},()=>{});
+  state.studentUnsubscribe=onSnapshot(query(collection(db,'students'),orderBy('name')),snapshot=>{state.students=snapshot.docs.map(item=>({id:item.id,...item.data()})).filter(s=>s.active!==false);renderRoster();},()=>{});
 }
 
-function teardown(){if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null;}state.user=null;state.breaches=[];}
+function teardown(){if(state.unsubscribe){state.unsubscribe();state.unsubscribe=null;}if(state.studentUnsubscribe){state.studentUnsubscribe();state.studentUnsubscribe=null;}state.user=null;state.breaches=[];state.students=[];}
 
 async function submitBreach(event) {
   event.preventDefault(); const submit=document.querySelector('#submit-breach'); submit.disabled=true;
+  const currentUser=auth.currentUser||state.user;
+  if(!currentUser){setNotice('Your sign-in expired. Please refresh and sign in again.');submit.disabled=false;return;}
   const studentName=document.querySelector('#student-name').value.trim(); const homegroup=document.querySelector('#homegroup').value; const notes=document.querySelector('#notes').value.trim(); const breachType=state.kind==='phone'?'Phone use':document.querySelector('#breach-type').value;
   if(!studentName||!homegroup||!breachType){setNotice('Complete the student, homegroup and breach fields.');submit.disabled=false;return;}
   try {
-    const now=Timestamp.now(); const dateKey=melbourneDate(now.toDate()); const base={kind:state.kind,studentName,studentKey:normaliseName(studentName),homegroup,breachType,notes,enteredBy:state.user.email,enteredByUid:state.user.uid,createdAt:now,occurrenceDate:dateKey,actioned:false,actionedBy:null,actionedAt:null};
+    const now=Timestamp.now(); const dateKey=melbourneDate(now.toDate()); const base={kind:state.kind,studentName,studentKey:normaliseName(studentName),homegroup,breachType,notes,enteredBy:currentUser.email,enteredByUid:currentUser.uid,createdAt:now,occurrenceDate:dateKey,actioned:false,actionedBy:null,actionedAt:null};
     let result={dayCount:null,level:null,parentEmailDraft:null};
     if(state.kind==='uniform'){
       const statRef=doc(db,'studentStats',await stableKey(studentName)); const breachRef=doc(collection(db,'breaches'));
@@ -89,7 +92,7 @@ function renderRecent(){const target=document.querySelector('#recent');const lis
 function renderRoster(){const target=document.querySelector('#student-roster');if(target)target.innerHTML=state.students.map(s=>`<option value="${escapeAttr(s.name)}">${escapeHtml(s.homegroup)}</option>`).join('');}
 function renderRegister(){const target=document.querySelector('#register-content');if(!target)return;const visible=state.breaches.filter(b=>(state.filter==='all'||(state.filter==='open'?!b.actioned:b.actioned))&&(state.group==='All homegroups'||b.homegroup===state.group));if(!visible.length){target.innerHTML=emptyState(false);return;}target.innerHTML=`<div class="table-scroll"><table><thead><tr><th>Actioned</th><th>Student</th><th>Homegroup</th><th>Breach</th><th>Recorded</th><th>Level</th><th>Parent email</th></tr></thead><tbody>${visible.map(item=>`<tr class="${item.actioned?'done':''}"><td><input class="action-checkbox" type="checkbox" data-action-id="${item.id}" ${item.actioned?'checked':''} aria-label="Mark ${escapeAttr(item.studentName)} actioned"></td><td><strong>${escapeHtml(item.studentName)}</strong><small>${item.id.slice(0,8)}</small></td><td>${escapeHtml(item.homegroup)}</td><td><span class="kind-pill ${item.kind}">${item.kind}</span>${escapeHtml(item.breachType)}</td><td>${formatDate(item.createdAt)}</td><td>${item.level?`<span class="level level-${Math.min(item.level,5)}">Level ${item.level}</span>`:'—'}</td><td>${item.parentEmailDraft?`<button class="text-button" data-email-id="${item.id}">View draft</button>`:'—'}</td></tr>`).join('')}</tbody></table></div>`;target.querySelectorAll('[data-action-id]').forEach(input=>input.addEventListener('change',()=>toggleActioned(input.dataset.actionId,input.checked)));target.querySelectorAll('[data-email-id]').forEach(button=>button.addEventListener('click',()=>openEmail(button.dataset.emailId)));}
 
-async function toggleActioned(id,actioned){try{await updateDoc(doc(db,'breaches',id),{actioned,actionedBy:actioned?state.user.email:null,actionedAt:actioned?Timestamp.now():null});}catch(error){showToast(friendlyError(error));}}
+async function toggleActioned(id,actioned){const currentUser=auth.currentUser||state.user;if(!currentUser){showToast('Your sign-in expired. Please refresh and sign in again.');return;}try{await updateDoc(doc(db,'breaches',id),{actioned,actionedBy:actioned?currentUser.email:null,actionedAt:actioned?Timestamp.now():null});}catch(error){showToast(friendlyError(error));}}
 function openEmail(id){const item=state.breaches.find(b=>b.id===id);if(!item)return;const root=document.querySelector('#modal-root');root.innerHTML=`<div class="modal-backdrop"><section class="email-modal" role="dialog" aria-modal="true"><div class="modal-header"><div><p class="eyebrow">Ready to copy</p><h2>Parent/carer email</h2></div><button id="close-modal" aria-label="Close">×</button></div><pre>${escapeHtml(item.parentEmailDraft)}</pre><button class="submit-button" id="copy-email">Copy email draft <span>⧉</span></button></section></div>`;root.querySelector('#close-modal').addEventListener('click',()=>root.innerHTML='');root.querySelector('.modal-backdrop').addEventListener('click',event=>{if(event.target===event.currentTarget)root.innerHTML='';});root.querySelector('#copy-email').addEventListener('click',async()=>{await navigator.clipboard.writeText(item.parentEmailDraft);root.innerHTML='';showToast('Email draft copied to clipboard.');});}
 function renderTypeField(){const field=document.querySelector('#type-field');field.innerHTML=state.kind==='uniform'?`Breach type<select id="breach-type" required><option value="">Select type</option>${BREACH_TYPES.map(t=>`<option>${t}</option>`).join('')}</select>`:'Type<input value="Phone use" disabled>';document.querySelector('#submit-breach').innerHTML=`Record ${state.kind} breach <span>→</span>`;}
 function setNotice(message){const node=document.querySelector('#form-notice');node.hidden=false;node.textContent=message;}
