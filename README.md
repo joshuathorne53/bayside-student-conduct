@@ -17,7 +17,7 @@ The Firebase web API key in `docs/firebase-config.js` identifies the Firebase pr
 
 ## Features
 
-- Google sign-in for `@bayside.edu.vic.au` and `@baysidecc.vic.edu.au` staff
+- Google sign-in exclusively for `@baysidecc.vic.edu.au` staff
 - Real-time uniform and phone breach register
 - Uniform escalation calculated atomically from distinct breach dates
 - Parent/carer email drafts

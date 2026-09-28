@@ -7,4 +7,4 @@ export const firebaseConfig = {
   appId: '1:897605084576:web:88a85bc0b5f82e4dda30c5',
 };
 
-export const allowedDomains = ['bayside.edu.vic.au', 'baysidecc.vic.edu.au'];
+export const allowedDomains = ['baysidecc.vic.edu.au'];
