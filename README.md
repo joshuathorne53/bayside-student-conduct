@@ -22,6 +22,7 @@ The Firebase web API key in `docs/firebase-config.js` identifies the Firebase pr
 - Uniform escalation calculated atomically from distinct breach dates
 - Parent/carer email drafts
 - Homegroup and status filtering
+- Per-teacher default action homegroup, synced across devices
 - Durable actioned tracking with staff attribution
 - Responsive mobile and desktop interface
 
